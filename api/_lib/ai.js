@@ -1,7 +1,4 @@
-import dotenv from "dotenv";
 import OpenAI from "openai";
-
-dotenv.config();
 
 /**
  * Provider Information with Free Tier Details
@@ -92,6 +89,12 @@ export const PROVIDER_INFO = {
         quality: "high",
         free: false,
       },
+      "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo": {
+        context: 128000,
+        speed: "fast",
+        quality: "good",
+        free: false,
+      },
       "Qwen/Qwen2.5-72B-Instruct-Turbo": {
         context: 32768,
         speed: "fast",
@@ -161,14 +164,8 @@ const RATE_LIMIT_CONFIG = {
   cerebras: { maxRetries: 3, baseDelay: 1000, maxDelay: 30000 },
 };
 
-/**
- * Sleep helper for rate limiting
- */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Exponential backoff calculator
- */
 function calculateBackoff(attempt, baseDelay, maxDelay) {
   const delay = Math.min(
     baseDelay * Math.pow(2, attempt) + Math.random() * 1000,
@@ -177,26 +174,19 @@ function calculateBackoff(attempt, baseDelay, maxDelay) {
   return Math.floor(delay);
 }
 
-/**
- * Check if error is a rate limit error
- */
 function isRateLimitError(error) {
   const msg = error.message?.toLowerCase() || "";
   const status = error.status || error.response?.status;
-
   return (
     status === 429 ||
     msg.includes("rate limit") ||
-    msg.includes("too many requests") ||
-    msg.includes("quota exceeded") ||
-    msg.includes("rate_limit_exceeded")
+    msg.includes("too many requests")
   );
 }
 
 /**
- * Unified AI Provider Manager
- * Supports: OpenAI, OpenRouter, Groq, Together AI, and Cerebras
- * Includes rate limit handling with exponential backoff
+ * AI Provider Manager for Vercel Serverless
+ * Stateless version - creates fresh clients per request
  */
 export class AIProviderManager {
   constructor() {
@@ -207,12 +197,8 @@ export class AIProviderManager {
       together: this.initTogether(),
       openai: this.initOpenAI(),
     };
-
-    // Track rate limit state per provider
-    this.rateLimitState = {};
   }
 
-  // Groq Configuration (Fast and free tier available)
   initGroq() {
     if (!process.env.GROQ_API_KEY) return null;
     return {
@@ -226,7 +212,6 @@ export class AIProviderManager {
     };
   }
 
-  // OpenRouter Configuration (Access to 100+ models)
   initOpenRouter() {
     if (!process.env.OPENROUTER_API_KEY) return null;
     return {
@@ -234,7 +219,7 @@ export class AIProviderManager {
         apiKey: process.env.OPENROUTER_API_KEY,
         baseURL: "https://openrouter.ai/api/v1",
         defaultHeaders: {
-          "HTTP-Referer": process.env.APP_URL || "http://localhost:3000",
+          "HTTP-Referer": process.env.VERCEL_URL || "http://localhost:3000",
           "X-Title": "AI SOP Builder",
         },
       }),
@@ -244,7 +229,6 @@ export class AIProviderManager {
     };
   }
 
-  // Cerebras Configuration (Ultra-fast inference)
   initCerebras() {
     if (!process.env.CEREBRAS_API_KEY) return null;
     return {
@@ -258,7 +242,6 @@ export class AIProviderManager {
     };
   }
 
-  // Together AI Configuration
   initTogether() {
     if (!process.env.TOGETHER_API_KEY) return null;
     return {
@@ -272,7 +255,6 @@ export class AIProviderManager {
     };
   }
 
-  // OpenAI Configuration
   initOpenAI() {
     if (!process.env.OPENAI_API_KEY) return null;
     return {
@@ -283,12 +265,8 @@ export class AIProviderManager {
     };
   }
 
-  /**
-   * Get available providers and their models
-   */
   getAvailableProviders() {
     const available = {};
-
     for (const [name, provider] of Object.entries(this.providers)) {
       if (provider) {
         available[name] = {
@@ -298,7 +276,6 @@ export class AIProviderManager {
         };
       }
     }
-
     return available;
   }
 
@@ -343,90 +320,10 @@ export class AIProviderManager {
     return freeModels;
   }
 
-  /**
-   * Check if a specific provider is currently rate limited
-   */
-  isProviderRateLimited(providerName) {
-    const state = this.rateLimitState[providerName];
-    if (!state) return false;
-    return Date.now() < state.retryAfter;
-  }
-
-  /**
-   * Test provider connectivity (lightweight health check)
-   */
-  async testProvider(providerName, model = null) {
-    const provider = this.providers[providerName];
-
-    if (!provider) {
-      return {
-        available: false,
-        error: "Provider not configured",
-        configured: false,
-      };
-    }
-
-    const testModel = model || provider.models[0];
-    const startTime = Date.now();
-
-    try {
-      const response = await provider.client.chat.completions.create({
-        model: testModel,
-        messages: [{ role: "user", content: 'Say "ok"' }],
-        max_tokens: 5,
-        temperature: 0,
-      });
-
-      return {
-        available: true,
-        configured: true,
-        model: testModel,
-        responseTime: Date.now() - startTime,
-        rateLimited: false,
-      };
-    } catch (error) {
-      const isRateLimit = isRateLimitError(error);
-
-      return {
-        available: false,
-        configured: true,
-        model: testModel,
-        responseTime: Date.now() - startTime,
-        rateLimited: isRateLimit,
-        error: error.message,
-      };
-    }
-  }
-
-  /**
-   * Test all configured providers
-   */
-  async testAllProviders() {
-    const results = {};
-
-    for (const [name, provider] of Object.entries(this.providers)) {
-      if (provider) {
-        results[name] = await this.testProvider(name);
-        // Small delay to avoid rate limits during testing
-        await sleep(500);
-      } else {
-        results[name] = { available: false, configured: false };
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Universal completion method with rate limit handling
-   */
   async createCompletion(providerName, model, messages, options = {}) {
     const provider = this.providers[providerName];
-
     if (!provider) {
-      throw new Error(
-        `Provider "${providerName}" is not configured. Add API key to .env`,
-      );
+      throw new Error(`Provider "${providerName}" is not configured`);
     }
 
     const config = RATE_LIMIT_CONFIG[providerName] || {
@@ -434,24 +331,12 @@ export class AIProviderManager {
       baseDelay: 1000,
       maxDelay: 30000,
     };
-    let lastError = null;
-
-    // Extract known options to avoid passing invalid params to the API
     const { temperature, maxTokens, max_tokens, topP, top_p, ...restOptions } =
       options;
+    let lastError = null;
 
     for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
       try {
-        // Check if we're in a backoff period
-        if (this.isProviderRateLimited(providerName)) {
-          const waitTime =
-            this.rateLimitState[providerName].retryAfter - Date.now();
-          console.log(
-            `[${providerName}] Rate limited, waiting ${waitTime}ms...`,
-          );
-          await sleep(waitTime);
-        }
-
         const response = await provider.client.chat.completions.create({
           model,
           messages,
@@ -461,9 +346,6 @@ export class AIProviderManager {
           ...restOptions,
         });
 
-        // Clear rate limit state on success
-        delete this.rateLimitState[providerName];
-
         return {
           content: response.choices[0].message.content,
           model: response.model,
@@ -472,54 +354,25 @@ export class AIProviderManager {
         };
       } catch (error) {
         lastError = error;
-
-        if (isRateLimitError(error)) {
+        if (isRateLimitError(error) && attempt < config.maxRetries) {
           const backoffDelay = calculateBackoff(
             attempt,
             config.baseDelay,
             config.maxDelay,
           );
-
-          // Extract retry-after header if available
-          const retryAfterHeader = error.headers?.["retry-after"];
-          const retryAfterMs = retryAfterHeader
-            ? parseInt(retryAfterHeader) * 1000
-            : backoffDelay;
-
           console.log(
-            `[${providerName}] Rate limit hit (attempt ${attempt + 1}/${config.maxRetries + 1}), backing off ${retryAfterMs}ms...`,
+            `[${providerName}] Rate limit, backing off ${backoffDelay}ms...`,
           );
-
-          // Store rate limit state
-          this.rateLimitState[providerName] = {
-            retryAfter: Date.now() + retryAfterMs,
-            lastError: error.message,
-          };
-
-          if (attempt < config.maxRetries) {
-            await sleep(retryAfterMs);
-            continue;
-          }
+          await sleep(backoffDelay);
+          continue;
         }
-
-        // Non-rate-limit error, don't retry
-        if (!isRateLimitError(error)) {
-          break;
-        }
+        if (!isRateLimitError(error)) break;
       }
     }
 
-    console.error(
-      `[${providerName}] Error after ${config.maxRetries + 1} attempts:`,
-      lastError?.message,
-    );
     throw new Error(`${providerName} API error: ${lastError?.message}`);
   }
 
-  /**
-   * Smart fallback: Try providers in order, skipping rate-limited ones
-   * Prioritizes free-tier providers
-   */
   async createCompletionWithFallback(
     preferredProvider,
     model,
@@ -540,28 +393,15 @@ export class AIProviderManager {
 
     for (const provider of providers) {
       if (tried.has(provider) || !this.providers[provider]) continue;
-
       tried.add(provider);
 
-      // Skip providers that are currently rate limited (unless it's our last option)
-      if (
-        this.isProviderRateLimited(provider) &&
-        tried.size < providers.filter((p) => this.providers[p]).length
-      ) {
-        console.log(`[Fallback] Skipping ${provider} (rate limited)`);
-        continue;
-      }
-
-      // Use provider's default model if the specified model isn't available
       const providerModels = this.providers[provider].models;
       const useModel = providerModels.includes(model)
         ? model
         : providerModels[0];
 
       try {
-        console.log(
-          `[Fallback] Attempting ${provider} with model ${useModel}...`,
-        );
+        console.log(`[Fallback] Trying ${provider} with ${useModel}...`);
         return await this.createCompletion(
           provider,
           useModel,
@@ -571,48 +411,141 @@ export class AIProviderManager {
       } catch (error) {
         console.log(`[Fallback] ${provider} failed: ${error.message}`);
         errors.push({ provider, error: error.message });
-        continue;
       }
     }
 
-    const errorSummary = errors
-      .map((e) => `${e.provider}: ${e.error}`)
-      .join("; ");
-    throw new Error(`All AI providers failed. Errors: ${errorSummary}`);
-  }
-
-  /**
-   * Get current rate limit status for all providers
-   */
-  getRateLimitStatus() {
-    const status = {};
-    const now = Date.now();
-
-    for (const [name, provider] of Object.entries(this.providers)) {
-      if (!provider) {
-        status[name] = { configured: false };
-        continue;
-      }
-
-      const state = this.rateLimitState[name];
-      if (state && now < state.retryAfter) {
-        status[name] = {
-          configured: true,
-          rateLimited: true,
-          retryIn: Math.ceil((state.retryAfter - now) / 1000),
-          lastError: state.lastError,
-        };
-      } else {
-        status[name] = {
-          configured: true,
-          rateLimited: false,
-        };
-      }
-    }
-
-    return status;
+    throw new Error(
+      `All providers failed: ${errors.map((e) => `${e.provider}: ${e.error}`).join("; ")}`,
+    );
   }
 }
 
-// Export singleton instance
-export const aiManager = new AIProviderManager();
+// Create fresh instance per request (serverless)
+export function getAIManager() {
+  return new AIProviderManager();
+}
+
+/**
+ * SOP System Prompt - Professional Enterprise Style
+ */
+export const SOP_SYSTEM_PROMPT = `You are an elite Standard Operating Procedure (SOP) architect with deep expertise in process engineering, quality management systems, and technical documentation. Your mission is to create world-class SOPs that meet the highest professional standards while being practical, actionable, and visually engaging.
+
+## 🏛️ PROFESSIONAL STANDARDS
+
+You adhere to:
+- **ISO 9001:2015** Quality Management Systems
+- **ISO 45001** Occupational Health & Safety
+- **FDA 21 CFR Part 11** (where applicable)
+- **GxP Guidelines** for regulated industries
+- Industry-specific compliance frameworks
+
+## 📋 DOCUMENT STRUCTURE
+
+Every SOP must include these sections in order:
+
+### Header Block
+\`\`\`
+┌─────────────────────────────────────────────────────────┐
+│  STANDARD OPERATING PROCEDURE                           │
+├─────────────────────────────────────────────────────────┤
+│  Title:        [Descriptive Title]                      │
+│  Document ID:  [DEPT-SOP-XXX]                          │
+│  Version:      [X.X]                                    │
+│  Effective:    [YYYY-MM-DD]                            │
+│  Owner:        [Role/Name]                              │
+│  Classification: [Internal/Confidential/Public]        │
+└─────────────────────────────────────────────────────────┘
+\`\`\`
+
+### Required Sections
+1. **Document Control** - Version history, approval signatures
+2. **Purpose** - Clear objective statement (1-2 paragraphs)
+3. **Scope** - Boundaries, inclusions, exclusions
+4. **Definitions & Acronyms** - Technical terminology table
+5. **Roles & Responsibilities** - RACI matrix format
+6. **Prerequisites** - Required resources, permissions, training
+7. **Procedure** - Numbered steps with decision trees
+8. **Safety & Compliance** - Warnings, PPE, regulatory notes
+9. **Quality Checkpoints** - Verification and validation gates
+10. **Troubleshooting** - Common issues and resolutions table
+11. **References** - Related documents, standards, links
+12. **Appendices** - Forms, checklists, supporting materials
+
+## ✍️ WRITING EXCELLENCE
+
+### Voice & Tone
+- **Authoritative yet accessible** - Expert guidance that anyone can follow
+- **Active voice, imperative mood** - "Configure the system..." not "The system should be configured..."
+- **Present tense** - "This procedure establishes..." not "This procedure will establish..."
+- **Third person** for roles - "The operator performs..." not "You perform..."
+
+### Clarity Principles
+- One instruction per step
+- Numbered sub-steps for complex procedures (1.1, 1.2, 1.3)
+- Decision points with clear IF/THEN/ELSE logic
+- Specific quantities, times, and measurements
+- No ambiguous terms ("approximately," "as needed," "regularly")
+
+### Professional Formatting
+| Element | Usage |
+|---------|-------|
+| **Bold** | Key terms, critical warnings, section titles |
+| *Italic* | Notes, references, emphasis |
+| \`Code\` | System commands, file paths, exact inputs |
+| > Blockquote | Important notes, cautions, tips |
+| Tables | Data, comparisons, matrices |
+| Lists | Sequential steps, requirements, options |
+
+## 🎯 VISUAL HIERARCHY
+
+Use strategic visual elements for navigation:
+
+- **⚠️ WARNING:** Safety-critical information
+- **🔒 SECURITY:** Access and confidentiality notes  
+- **💡 NOTE:** Helpful tips and best practices
+- **✅ CHECKPOINT:** Quality verification points
+- **📌 REFERENCE:** Links to related documents
+- **⏱️ TIME:** Duration estimates
+- **🔧 TOOLS:** Required equipment/software
+
+## 📊 QUALITY INDICATORS
+
+Include measurable elements:
+- Success criteria for each major step
+- Key Performance Indicators (KPIs) where applicable
+- Acceptance thresholds and tolerances
+- Estimated completion times
+- Required approvals and sign-offs
+
+## 🔄 OUTPUT FORMAT
+
+Always produce:
+1. Clean, properly nested Markdown
+2. Consistent heading hierarchy (##, ###, ####)
+3. Proper table formatting with headers
+4. Code blocks with language specification
+5. Horizontal rules (---) between major sections
+6. Professional, enterprise-ready language
+
+Deliver documentation that would pass audit by ISO registrars, regulatory bodies, and enterprise quality teams.`;
+
+/**
+ * CORS headers for Vercel
+ */
+export function setCorsHeaders(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+/**
+ * Handle OPTIONS request
+ */
+export function handleCors(req, res) {
+  setCorsHeaders(res);
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return true;
+  }
+  return false;
+}

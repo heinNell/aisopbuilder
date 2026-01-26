@@ -1,8 +1,14 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { FileText, Sparkles } from 'lucide-react';
+import { motion } from "framer-motion";
+import { FileText, Settings, Sparkles } from "lucide-react";
 
-export default function Header() {
+export default function Header({ onSettingsClick, currentProvider = "groq" }) {
+  const providerNames = {
+    groq: "Groq",
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    together: "Together",
+  };
+
   return (
     <header className="glass-panel mx-4 mt-4 p-6">
       <div className="container mx-auto">
@@ -29,23 +35,46 @@ export default function Header() {
               </p>
             </div>
           </div>
-          
+
           <motion.div
-            className="hidden md:flex items-center space-x-3 text-sm"
+            className="flex items-center space-x-3 text-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <span className="badge badge-primary flex items-center gap-2">
-              <Sparkles className="w-3 h-3" />
-              AI-Powered
-            </span>
-            <span className="badge badge-success flex items-center gap-2">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              ISO Compliant
-            </span>
+            <div className="hidden md:flex items-center gap-3">
+              <span className="badge badge-primary flex items-center gap-2">
+                <Sparkles className="w-3 h-3" />
+                AI-Powered
+              </span>
+              <span className="badge badge-success flex items-center gap-2">
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                ISO Compliant
+              </span>
+            </div>
+
+            {/* Settings Button */}
+            <motion.button
+              onClick={onSettingsClick}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Settings className="w-4 h-4 text-slate-400" />
+              <span className="text-sm text-slate-300 hidden sm:inline">
+                {providerNames[currentProvider] || "Settings"}
+              </span>
+            </motion.button>
           </motion.div>
         </motion.div>
       </div>

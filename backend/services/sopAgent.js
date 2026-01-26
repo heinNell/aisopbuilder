@@ -1,31 +1,140 @@
-import OpenAI from 'openai';
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import { aiManager } from "./aiProviders.js";
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export class SOPAgent {
   constructor() {
-    this.systemPrompt = `You are an expert Standard Operating Procedure (SOP) writer with decades of experience in documentation, process engineering, and technical writing. Your role is to create highly professional, structurally enhanced, and comprehensive SOPs that meet industry standards.
+    this.systemPrompt = `You are an elite Standard Operating Procedure (SOP) architect with deep expertise in process engineering, quality management systems, and technical documentation. Your mission is to create world-class SOPs that meet the highest professional standards while being practical, actionable, and visually engaging.
 
-Key Responsibilities:
-1. Generate formal, clear, and actionable SOPs
-2. Use professional business language with proper structure
-3. Include all essential sections: Purpose, Scope, Responsibilities, Procedures, References
-4. Create detailed, step-by-step instructions with numbering
-5. Ensure compliance with ISO 9001 and industry best practices
-6. Format content for maximum clarity and usability
+## 🏛️ PROFESSIONAL STANDARDS
 
-Writing Style:
-- Use active voice and imperative mood
-- Be specific, measurable, and actionable
-- Include safety warnings and notes where appropriate
-- Maintain consistent formatting and terminology
-- Use professional terminology without jargon
-- Structure information hierarchically`;
+You adhere to:
+- **ISO 9001:2015** Quality Management Systems
+- **ISO 45001** Occupational Health & Safety
+- **FDA 21 CFR Part 11** (where applicable)
+- **GxP Guidelines** for regulated industries
+- Industry-specific compliance frameworks
+
+## 📋 DOCUMENT STRUCTURE
+
+Every SOP must include these sections in order:
+
+### Header Block
+\`\`\`
+┌─────────────────────────────────────────────────────────┐
+│  STANDARD OPERATING PROCEDURE                           │
+├─────────────────────────────────────────────────────────┤
+│  Title:        [Descriptive Title]                      │
+│  Document ID:  [DEPT-SOP-XXX]                          │
+│  Version:      [X.X]                                    │
+│  Effective:    [YYYY-MM-DD]                            │
+│  Owner:        [Role/Name]                              │
+│  Classification: [Internal/Confidential/Public]        │
+└─────────────────────────────────────────────────────────┘
+\`\`\`
+
+### Required Sections
+1. **Document Control** - Version history, approval signatures
+2. **Purpose** - Clear objective statement (1-2 paragraphs)
+3. **Scope** - Boundaries, inclusions, exclusions
+4. **Definitions & Acronyms** - Technical terminology table
+5. **Roles & Responsibilities** - RACI matrix format
+6. **Prerequisites** - Required resources, permissions, training
+7. **Procedure** - Numbered steps with decision trees
+8. **Safety & Compliance** - Warnings, PPE, regulatory notes
+9. **Quality Checkpoints** - Verification and validation gates
+10. **Troubleshooting** - Common issues and resolutions table
+11. **References** - Related documents, standards, links
+12. **Appendices** - Forms, checklists, supporting materials
+
+## ✍️ WRITING EXCELLENCE
+
+### Voice & Tone
+- **Authoritative yet accessible** - Expert guidance that anyone can follow
+- **Active voice, imperative mood** - "Configure the system..." not "The system should be configured..."
+- **Present tense** - "This procedure establishes..." not "This procedure will establish..."
+- **Third person** for roles - "The operator performs..." not "You perform..."
+
+### Clarity Principles
+- One instruction per step
+- Numbered sub-steps for complex procedures (1.1, 1.2, 1.3)
+- Decision points with clear IF/THEN/ELSE logic
+- Specific quantities, times, and measurements
+- No ambiguous terms ("approximately," "as needed," "regularly")
+
+### Professional Formatting
+| Element | Usage |
+|---------|-------|
+| **Bold** | Key terms, critical warnings, section titles |
+| *Italic* | Notes, references, emphasis |
+| \`Code\` | System commands, file paths, exact inputs |
+| > Blockquote | Important notes, cautions, tips |
+| Tables | Data, comparisons, matrices |
+| Lists | Sequential steps, requirements, options |
+
+## 🎯 VISUAL HIERARCHY
+
+Use strategic visual elements for navigation:
+
+- **⚠️ WARNING:** Safety-critical information
+- **🔒 SECURITY:** Access and confidentiality notes  
+- **💡 NOTE:** Helpful tips and best practices
+- **✅ CHECKPOINT:** Quality verification points
+- **📌 REFERENCE:** Links to related documents
+- **⏱️ TIME:** Duration estimates
+- **🔧 TOOLS:** Required equipment/software
+
+## 📊 QUALITY INDICATORS
+
+Include measurable elements:
+- Success criteria for each major step
+- Key Performance Indicators (KPIs) where applicable
+- Acceptance thresholds and tolerances
+- Estimated completion times
+- Required approvals and sign-offs
+
+## 🔄 OUTPUT FORMAT
+
+Always produce:
+1. Clean, properly nested Markdown
+2. Consistent heading hierarchy (##, ###, ####)
+3. Proper table formatting with headers
+4. Code blocks with language specification
+5. Horizontal rules (---) between major sections
+6. Professional, enterprise-ready language
+
+Deliver documentation that would pass audit by ISO registrars, regulatory bodies, and enterprise quality teams.`;
+
+    // Prefer Groq for extremely low latency (great UX) – uses strong models like llama-3.3-70b-versatile by default
+    // Change to 'openai' if you prefer GPT quality first (e.g., gpt-4o-mini)
+    this.preferredProvider = "groq";
+  }
+
+  /**
+   * Internal helper to generate completions using the multi-provider manager with fallback
+   */
+  async _generateCompletion(
+    prompt,
+    { temperature = 0.7, max_tokens = 4000 } = {},
+  ) {
+    const messages = [
+      { role: "system", content: this.systemPrompt },
+      { role: "user", content: prompt },
+    ];
+
+    try {
+      const result = await aiManager.createCompletionWithFallback(
+        this.preferredProvider,
+        null, // Use the provider's primary/default model (robust across providers)
+        messages,
+        { temperature, max_tokens },
+      );
+
+      return result.content.trim();
+    } catch (error) {
+      throw new Error(`SOP Agent failure: ${error.message}`);
+    }
   }
 
   async generateSOP(params) {
@@ -34,9 +143,9 @@ Writing Style:
     const userPrompt = `Generate a comprehensive Standard Operating Procedure for the following:
 
 Topic: ${topic}
-Department: ${department || 'General'}
-Complexity Level: ${complexity || 'Medium'}
-Additional Context: ${additionalContext || 'None'}
+Department: ${department || "General"}
+Complexity Level: ${complexity || "Medium"}
+Additional Context: ${additionalContext || "None"}
 
 Please create a complete SOP document with:
 1. Document Information (Title, Document ID, Version, Date, Approval)
@@ -53,43 +162,67 @@ Please create a complete SOP document with:
 
 Make it professional, detailed, and ready for implementation.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+    return await this._generateCompletion(userPrompt, {
       temperature: 0.7,
       max_tokens: 4000,
     });
-
-    return response.choices[0].message.content;
   }
 
   async improveSOP(existingText, improvementFocus) {
-    const userPrompt = `Analyze and improve the following SOP document. Focus on: ${improvementFocus || 'overall quality, clarity, and completeness'}.
+    const focusGuidance = {
+      general: "overall quality, structure, clarity, and professionalism",
+      clarity: "clarity, readability, and ease of understanding",
+      structure: "document structure, organization, and formatting",
+      compliance: "regulatory compliance, safety standards, and best practices",
+      detail: "level of detail, specificity, and completeness",
+    };
 
-Existing SOP:
+    const userPrompt = `Improve the following SOP document. Focus on: ${focusGuidance[improvementFocus] || focusGuidance.general}.
+
+## 📄 Original SOP:
 ${existingText}
 
-Please provide:
-1. An improved version of the SOP with enhanced structure and clarity
-2. A summary of key improvements made
-3. Recommendations for further enhancement
+---
 
-Ensure the improved version maintains all original information while enhancing professionalism and usability.`;
+## 📋 Your Task:
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+**PART 1 - IMPROVED SOP:**
+Return the COMPLETE improved SOP document in proper Markdown format. This should be ready to use as-is. Include:
+- All original essential information (preserved and enhanced)
+- Proper document header (Title, ID, Version, Date, Owner)
+- Well-structured sections with clear headings
+- Professional formatting with tables, lists, and callouts
+- ISO 9001 compliant structure
+
+**PART 2 - IMPROVEMENT FEEDBACK:**
+After the SOP, add a separator (---) and provide feedback in a table:
+
+---
+
+## 📊 Improvement Summary
+
+| Category | Original Status | Changes Made | Impact |
+|----------|-----------------|--------------|--------|
+| Structure | ... | ... | ... |
+| Clarity | ... | ... | ... |
+| Completeness | ... | ... | ... |
+| Compliance | ... | ... | ... |
+| Formatting | ... | ... | ... |
+
+### 🎯 Key Improvements Made:
+- List the main changes
+
+### 💡 Recommendations for Future Updates:
+- List any suggestions for further enhancement
+
+---
+
+**IMPORTANT:** The improved SOP above the separator should be a complete, standalone document ready for immediate use.`;
+
+    return await this._generateCompletion(userPrompt, {
       temperature: 0.7,
       max_tokens: 4000,
     });
-
-    return response.choices[0].message.content;
   }
 
   async analyzeSOP(sopText) {
@@ -111,17 +244,10 @@ Please provide:
 
 Format your response as structured data that can be parsed.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: analysisPrompt }
-      ],
+    return await this._generateCompletion(analysisPrompt, {
       temperature: 0.3,
       max_tokens: 2000,
     });
-
-    return response.choices[0].message.content;
   }
 
   async generateSummary(sopText) {
@@ -137,41 +263,27 @@ Provide:
 
 Keep it professional and suitable for management review.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: summaryPrompt }
-      ],
+    return await this._generateCompletion(summaryPrompt, {
       temperature: 0.5,
       max_tokens: 1000,
     });
-
-    return response.choices[0].message.content;
   }
 
   async enhanceSentence(sentence, context) {
     const enhancePrompt = `Rewrite the following sentence to be more professional, clear, and formal for an SOP document:
 
 Original: "${sentence}"
-Context: ${context || 'General SOP document'}
+Context: ${context || "General SOP document"}
 
 Provide 3 enhanced versions with different tones:
 1. Formal and detailed
 2. Concise and direct
 3. Technical and precise`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: enhancePrompt }
-      ],
+    return await this._generateCompletion(enhancePrompt, {
       temperature: 0.7,
       max_tokens: 500,
     });
-
-    return response.choices[0].message.content;
   }
 
   async generateTemplate(industry, processType) {
@@ -187,17 +299,10 @@ Create a blank template with:
 
 Make it ready to fill in.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: templatePrompt }
-      ],
+    return await this._generateCompletion(templatePrompt, {
       temperature: 0.6,
       max_tokens: 3000,
     });
-
-    return response.choices[0].message.content;
   }
 }
 

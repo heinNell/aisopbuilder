@@ -1,29 +1,31 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp } from 'lucide-react';
-import { analyzeSOP, generateSummary } from '../services/api';
+import { motion } from "framer-motion";
+import { BarChart3, Code, Eye, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { analyzeSOP, generateSummary } from "../services/api";
+import MarkdownRenderer from "./MarkdownRenderer";
 
 export default function SOPAnalyzer() {
-  const [sopText, setSopText] = useState('');
-  const [analysis, setAnalysis] = useState('');
-  const [summary, setSummary] = useState('');
+  const [sopText, setSopText] = useState("");
+  const [analysis, setAnalysis] = useState("");
+  const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('analysis');
+  const [activeTab, setActiveTab] = useState("analysis");
+  const [viewMode, setViewMode] = useState("rendered"); // 'rendered' or 'raw'
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const [analysisResponse, summaryResponse] = await Promise.all([
         analyzeSOP({ text: sopText }),
-        generateSummary({ text: sopText })
+        generateSummary({ text: sopText }),
       ]);
-      
+
       setAnalysis(analysisResponse.analysis);
       setSummary(summaryResponse.summary);
     } catch (error) {
-      alert('Error analyzing SOP: ' + error.message);
+      alert("Error analyzing SOP: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,9 @@ export default function SOPAnalyzer() {
           </div>
           <div>
             <h2 className="text-3xl font-bold text-gradient">Analyze SOP</h2>
-            <p className="text-slate-400 mt-1.5 font-light">Get comprehensive insights and quality metrics</p>
+            <p className="text-slate-400 mt-1.5 font-light">
+              Get comprehensive insights and quality metrics
+            </p>
           </div>
         </div>
 
@@ -91,36 +95,70 @@ export default function SOPAnalyzer() {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8 space-y-4"
           >
-            {/* Tabs */}
-            <div className="flex gap-2 border-b border-white/10 pb-2">
-              <button
-                onClick={() => setActiveTab('analysis')}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-colors ${
-                  activeTab === 'analysis'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                Detailed Analysis
-              </button>
-              <button
-                onClick={() => setActiveTab('summary')}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-colors ${
-                  activeTab === 'summary'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                Executive Summary
-              </button>
+            {/* Tabs & View Toggle */}
+            <div className="flex items-center justify-between flex-wrap gap-3 border-b border-white/10 pb-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab("analysis")}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                    activeTab === "analysis"
+                      ? "bg-primary-600 text-white"
+                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Detailed Analysis
+                </button>
+                <button
+                  onClick={() => setActiveTab("summary")}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                    activeTab === "summary"
+                      ? "bg-primary-600 text-white"
+                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Executive Summary
+                </button>
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex rounded-lg bg-white/5 p-1">
+                <button
+                  onClick={() => setViewMode("rendered")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    viewMode === "rendered"
+                      ? "bg-primary-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Preview
+                </button>
+                <button
+                  onClick={() => setViewMode("raw")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    viewMode === "raw"
+                      ? "bg-primary-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Code className="w-3.5 h-3.5" />
+                  Markdown
+                </button>
+              </div>
             </div>
 
-            {/* Content */}
-            <div className="code-output">
-              <pre>
-                {activeTab === 'analysis' ? analysis : summary}
-              </pre>
-            </div>
+            {/* Output Display */}
+            {viewMode === "rendered" ? (
+              <div className="sop-output">
+                <MarkdownRenderer
+                  content={activeTab === "analysis" ? analysis : summary}
+                />
+              </div>
+            ) : (
+              <div className="code-output">
+                <pre>{activeTab === "analysis" ? analysis : summary}</pre>
+              </div>
+            )}
           </motion.div>
         )}
       </motion.div>
