@@ -1,5 +1,15 @@
 import { motion } from "framer-motion";
-import { Check, Code, Copy, Download, Eye, Rocket } from "lucide-react";
+import html2pdf from "html2pdf.js";
+import {
+  Check,
+  Code,
+  Copy,
+  Download,
+  Eye,
+  FileText,
+  Rocket,
+} from "lucide-react";
+import { marked } from "marked";
 import { useEffect, useState } from "react";
 import { improveSOP } from "../services/api";
 import MarkdownRenderer from "./MarkdownRenderer";
@@ -63,8 +73,8 @@ export default function SOPImprover({ initialContent }) {
   };
 
   const handleDownloadFull = () => {
-    const fullContent = improvementFeedback 
-      ? `${improvedSOP}\n\n---\n\n${improvementFeedback}` 
+    const fullContent = improvementFeedback
+      ? `${improvedSOP}\n\n---\n\n${improvementFeedback}`
       : improvedSOP;
     const blob = new Blob([fullContent], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -76,7 +86,251 @@ export default function SOPImprover({ initialContent }) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const handleDownloadPDF = () => {
+    // Convert markdown to HTML
+    const htmlContent = marked.parse(improvedSOP);
 
+    // Create styled PDF container
+    const pdfContainer = document.createElement("div");
+    pdfContainer.innerHTML = `
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.7;
+          color: #1e293b;
+          background: white;
+        }
+        .pdf-wrapper {
+          padding: 40px 50px;
+          max-width: 100%;
+        }
+        .pdf-header {
+          background: linear-gradient(135deg, #0284c7, #0ea5e9, #38bdf8);
+          color: white;
+          padding: 30px 40px;
+          margin: -40px -50px 30px -50px;
+          border-radius: 0 0 20px 20px;
+        }
+        .pdf-header h1 {
+          font-size: 28px;
+          font-weight: 700;
+          margin-bottom: 8px;
+          letter-spacing: -0.5px;
+        }
+        .pdf-header p {
+          font-size: 12px;
+          opacity: 0.9;
+        }
+        .pdf-content {
+          padding: 10px 0;
+        }
+        h1 {
+          font-size: 24px;
+          font-weight: 700;
+          color: #0c4a6e;
+          margin: 30px 0 15px 0;
+          padding-bottom: 10px;
+          border-bottom: 3px solid #0ea5e9;
+        }
+        h2 {
+          font-size: 20px;
+          font-weight: 600;
+          color: #075985;
+          margin: 25px 0 12px 0;
+          padding-bottom: 8px;
+          border-bottom: 2px solid #bae6fd;
+        }
+        h3 {
+          font-size: 16px;
+          font-weight: 600;
+          color: #0284c7;
+          margin: 20px 0 10px 0;
+        }
+        h4 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #334155;
+          margin: 15px 0 8px 0;
+        }
+        p {
+          margin: 12px 0;
+          color: #334155;
+          font-size: 11px;
+        }
+        ul, ol {
+          margin: 12px 0 12px 25px;
+          color: #334155;
+        }
+        li {
+          margin: 6px 0;
+          font-size: 11px;
+        }
+        ul li {
+          list-style-type: none;
+          position: relative;
+          padding-left: 18px;
+        }
+        ul li::before {
+          content: "▸";
+          position: absolute;
+          left: 0;
+          color: #0ea5e9;
+          font-weight: bold;
+        }
+        ol {
+          counter-reset: item;
+          list-style-type: none;
+        }
+        ol li {
+          counter-increment: item;
+          position: relative;
+          padding-left: 30px;
+        }
+        ol li::before {
+          content: counter(item);
+          position: absolute;
+          left: 0;
+          background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+          color: white;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 600;
+        }
+        blockquote {
+          margin: 15px 0;
+          padding: 15px 20px;
+          background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+          border-left: 4px solid #0ea5e9;
+          border-radius: 0 10px 10px 0;
+          font-style: italic;
+          color: #075985;
+        }
+        code {
+          background: #f1f5f9;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-family: 'Consolas', monospace;
+          font-size: 10px;
+          color: #0284c7;
+        }
+        pre {
+          background: #0f172a;
+          color: #e2e8f0;
+          padding: 15px 20px;
+          border-radius: 10px;
+          margin: 15px 0;
+          overflow-x: auto;
+          font-size: 10px;
+        }
+        pre code {
+          background: transparent;
+          color: inherit;
+          padding: 0;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 15px 0;
+          font-size: 11px;
+        }
+        th {
+          background: linear-gradient(135deg, #0ea5e9, #0284c7);
+          color: white;
+          padding: 12px 15px;
+          text-align: left;
+          font-weight: 600;
+        }
+        td {
+          padding: 10px 15px;
+          border-bottom: 1px solid #e2e8f0;
+          color: #334155;
+        }
+        tr:nth-child(even) {
+          background: #f8fafc;
+        }
+        tr:hover {
+          background: #f0f9ff;
+        }
+        hr {
+          margin: 25px 0;
+          border: none;
+          height: 2px;
+          background: linear-gradient(to right, transparent, #0ea5e9, transparent);
+        }
+        a {
+          color: #0284c7;
+          text-decoration: none;
+        }
+        strong {
+          color: #0f172a;
+          font-weight: 600;
+        }
+        em {
+          color: #0284c7;
+        }
+        .pdf-footer {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 2px solid #e2e8f0;
+          text-align: center;
+          font-size: 10px;
+          color: #64748b;
+        }
+        .pdf-footer .brand {
+          color: #0ea5e9;
+          font-weight: 600;
+        }
+      </style>
+      <div class="pdf-wrapper">
+        <div class="pdf-header">
+          <h1>📋 Standard Operating Procedure</h1>
+          <p>Generated on ${new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}</p>
+        </div>
+        <div class="pdf-content">
+          ${htmlContent}
+        </div>
+        <div class="pdf-footer">
+          <p>Generated by <span class="brand">AI SOP Builder</span> • Professional SOP Documentation</p>
+        </div>
+      </div>
+    `;
+
+    // PDF options
+    const options = {
+      margin: 0,
+      filename: `Improved-SOP-${new Date().toISOString().split("T")[0]}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+    };
+
+    // Generate and download PDF
+    html2pdf().set(options).from(pdfContainer).save();
+  };
   return (
     <div className="max-w-6xl mx-auto">
       <motion.div
@@ -220,7 +474,17 @@ export default function SOPImprover({ initialContent }) {
                   title="Download only the improved SOP"
                 >
                   <Download className="w-4 h-4" />
-                  Download SOP
+                  Download MD
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleDownloadPDF}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 rounded-lg transition-all shadow-lg shadow-emerald-500/20"
+                  title="Download as styled PDF"
+                >
+                  <FileText className="w-4 h-4" />
+                  Download PDF
                 </motion.button>
               </div>
             </div>
