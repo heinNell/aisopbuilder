@@ -27,11 +27,30 @@ async function fetchAPI(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "API request failed");
+    let errorMessage = "API request failed";
+    try {
+      const text = await response.text();
+      if (text) {
+        const error = JSON.parse(text);
+        errorMessage = error.error || error.details || errorMessage;
+      }
+    } catch (e) {
+      // Response wasn't valid JSON, use status text
+      errorMessage = response.statusText || `HTTP ${response.status}`;
+    }
+    throw new Error(errorMessage);
   }
 
-  return response.json();
+  const text = await response.text();
+  if (!text) {
+    throw new Error("Empty response from server");
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error("Invalid JSON response from server");
+  }
 }
 
 /**

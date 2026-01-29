@@ -26,15 +26,39 @@ export const PROVIDER_INFO = {
         quality: "good",
         free: true,
       },
-      "mixtral-8x7b-32768": {
+      "meta-llama/llama-4-scout-17b-16e-instruct": {
+        context: 128000,
+        speed: "fast",
+        quality: "high",
+        free: true,
+      },
+      "meta-llama/llama-4-maverick-17b-128e-instruct": {
+        context: 128000,
+        speed: "fast",
+        quality: "high",
+        free: true,
+      },
+      "qwen/qwen3-32b": {
         context: 32768,
         speed: "fast",
         quality: "high",
         free: true,
       },
-      "gemma2-9b-it": {
-        context: 8192,
+      "moonshotai/kimi-k2-instruct": {
+        context: 128000,
         speed: "fast",
+        quality: "high",
+        free: true,
+      },
+      "groq/compound": {
+        context: 128000,
+        speed: "fast",
+        quality: "high",
+        free: true,
+      },
+      "groq/compound-mini": {
+        context: 128000,
+        speed: "ultra-fast",
         quality: "good",
         free: true,
       },
@@ -92,6 +116,12 @@ export const PROVIDER_INFO = {
         quality: "high",
         free: false,
       },
+      "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo": {
+        context: 128000,
+        speed: "fast",
+        quality: "good",
+        free: false,
+      },
       "Qwen/Qwen2.5-72B-Instruct-Turbo": {
         context: 32768,
         speed: "fast",
@@ -102,27 +132,63 @@ export const PROVIDER_INFO = {
   },
   openai: {
     name: "OpenAI",
-    description: "GPT-4 and ChatGPT models",
+    description: "GPT-4 and GPT-5 models",
     freeTier: false,
     freeLimit: "Pay-per-use only",
     website: "https://platform.openai.com",
     models: {
-      "gpt-4o-mini": {
+      "gpt-5": {
+        context: 128000,
+        speed: "medium",
+        quality: "premium",
+        free: false,
+      },
+      "gpt-5-mini": {
         context: 128000,
         speed: "fast",
         quality: "high",
         free: false,
       },
-      "gpt-4o": {
+      "gpt-5-nano": {
+        context: 128000,
+        speed: "ultra-fast",
+        quality: "good",
+        free: false,
+      },
+      "gpt-4.1": {
         context: 128000,
         speed: "medium",
         quality: "premium",
+        free: false,
+      },
+      "gpt-4.1-mini": {
+        context: 128000,
+        speed: "fast",
+        quality: "high",
+        free: false,
+      },
+      "gpt-4.1-nano": {
+        context: 128000,
+        speed: "ultra-fast",
+        quality: "good",
         free: false,
       },
       "gpt-4-turbo": {
         context: 128000,
         speed: "medium",
         quality: "premium",
+        free: false,
+      },
+      "gpt-4": {
+        context: 8192,
+        speed: "medium",
+        quality: "high",
+        free: false,
+      },
+      "gpt-3.5-turbo": {
+        context: 16385,
+        speed: "fast",
+        quality: "good",
         free: false,
       },
     },
@@ -148,6 +214,63 @@ export const PROVIDER_INFO = {
       },
     },
   },
+  anthropic: {
+    name: "Anthropic",
+    description: "Claude models - Advanced reasoning and analysis",
+    freeTier: false,
+    freeLimit: "Pay-per-use only",
+    website: "https://console.anthropic.com",
+    models: {
+      "claude-opus-4-5-20251101": {
+        context: 200000,
+        speed: "medium",
+        quality: "premium",
+        free: false,
+      },
+      "claude-sonnet-4-5-20250929": {
+        context: 200000,
+        speed: "fast",
+        quality: "premium",
+        free: false,
+      },
+      "claude-haiku-4-5-20251001": {
+        context: 200000,
+        speed: "ultra-fast",
+        quality: "high",
+        free: false,
+      },
+      "claude-opus-4-20250514": {
+        context: 200000,
+        speed: "medium",
+        quality: "premium",
+        free: false,
+      },
+      "claude-sonnet-4-20250514": {
+        context: 200000,
+        speed: "fast",
+        quality: "premium",
+        free: false,
+      },
+      "claude-3-7-sonnet-20250219": {
+        context: 200000,
+        speed: "fast",
+        quality: "high",
+        free: false,
+      },
+      "claude-3-5-haiku-20241022": {
+        context: 200000,
+        speed: "ultra-fast",
+        quality: "high",
+        free: false,
+      },
+      "claude-3-haiku-20240307": {
+        context: 200000,
+        speed: "ultra-fast",
+        quality: "good",
+        free: false,
+      },
+    },
+  },
 };
 
 /**
@@ -159,6 +282,7 @@ const RATE_LIMIT_CONFIG = {
   groq: { maxRetries: 5, baseDelay: 2000, maxDelay: 60000 },
   together: { maxRetries: 3, baseDelay: 1000, maxDelay: 30000 },
   cerebras: { maxRetries: 3, baseDelay: 1000, maxDelay: 30000 },
+  anthropic: { maxRetries: 3, baseDelay: 1000, maxDelay: 60000 },
 };
 
 /**
@@ -206,6 +330,7 @@ export class AIProviderManager {
       cerebras: this.initCerebras(),
       together: this.initTogether(),
       openai: this.initOpenAI(),
+      anthropic: this.initAnthropic(),
     };
 
     // Track rate limit state per provider
@@ -280,6 +405,17 @@ export class AIProviderManager {
       models: Object.keys(PROVIDER_INFO.openai.models),
       type: "openai",
       info: PROVIDER_INFO.openai,
+    };
+  }
+
+  // Anthropic Configuration (Claude models)
+  initAnthropic() {
+    if (!process.env.ANTHROPIC_API_KEY) return null;
+    return {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      models: Object.keys(PROVIDER_INFO.anthropic.models),
+      type: "anthropic",
+      info: PROVIDER_INFO.anthropic,
     };
   }
 
@@ -370,12 +506,47 @@ export class AIProviderManager {
     const startTime = Date.now();
 
     try {
-      const response = await provider.client.chat.completions.create({
+      // Handle Anthropic separately
+      if (provider.type === "anthropic") {
+        const response = await this.callAnthropicAPI(
+          provider.apiKey,
+          testModel,
+          [{ role: "user", content: 'Say "ok"' }],
+          { max_tokens: 5, temperature: 0 },
+        );
+
+        return {
+          available: true,
+          configured: true,
+          model: testModel,
+          responseTime: Date.now() - startTime,
+          rateLimited: false,
+        };
+      }
+
+      // Build test options based on model type
+      const testOptions = {
         model: testModel,
         messages: [{ role: "user", content: 'Say "ok"' }],
-        max_tokens: 5,
-        temperature: 0,
-      });
+      };
+
+      // GPT-5 and newer models use max_completion_tokens instead of max_tokens
+      // and don't support custom temperature
+      if (
+        testModel.startsWith("gpt-5") ||
+        testModel.startsWith("o1") ||
+        testModel.startsWith("o3")
+      ) {
+        testOptions.max_completion_tokens = 5;
+        // GPT-5 only supports temperature=1, so we don't set it
+      } else {
+        testOptions.max_tokens = 5;
+        testOptions.temperature = 0;
+      }
+
+      // OpenAI-compatible providers
+      const response =
+        await provider.client.chat.completions.create(testOptions);
 
       return {
         available: true,
@@ -452,14 +623,53 @@ export class AIProviderManager {
           await sleep(waitTime);
         }
 
-        const response = await provider.client.chat.completions.create({
+        // Handle Anthropic separately (different API format)
+        if (provider.type === "anthropic") {
+          const response = await this.callAnthropicAPI(
+            provider.apiKey,
+            model,
+            messages,
+            {
+              temperature: temperature ?? 0.7,
+              max_tokens: max_tokens ?? maxTokens ?? 4000,
+            },
+          );
+          delete this.rateLimitState[providerName];
+          return response;
+        }
+
+        // Build completion options based on model type
+        const completionOptions = {
           model,
           messages,
-          temperature: temperature ?? 0.7,
-          max_tokens: max_tokens ?? maxTokens ?? 4000,
           top_p: top_p ?? topP ?? 1,
           ...restOptions,
-        });
+        };
+
+        // GPT-5 and newer models don't support custom temperature (only 1)
+        if (
+          !model.startsWith("gpt-5") &&
+          !model.startsWith("o1") &&
+          !model.startsWith("o3")
+        ) {
+          completionOptions.temperature = temperature ?? 0.7;
+        }
+
+        // GPT-5 and newer models use max_completion_tokens instead of max_tokens
+        const tokenLimit = max_tokens ?? maxTokens ?? 4000;
+        if (
+          model.startsWith("gpt-5") ||
+          model.startsWith("o1") ||
+          model.startsWith("o3")
+        ) {
+          completionOptions.max_completion_tokens = tokenLimit;
+        } else {
+          completionOptions.max_tokens = tokenLimit;
+        }
+
+        // OpenAI-compatible providers
+        const response =
+          await provider.client.chat.completions.create(completionOptions);
 
         // Clear rate limit state on success
         delete this.rateLimitState[providerName];
@@ -517,6 +727,63 @@ export class AIProviderManager {
   }
 
   /**
+   * Call Anthropic API directly (different format from OpenAI)
+   */
+  async callAnthropicAPI(apiKey, model, messages, options) {
+    // Convert OpenAI message format to Anthropic format
+    let systemPrompt = "";
+    const anthropicMessages = [];
+
+    for (const msg of messages) {
+      if (msg.role === "system") {
+        systemPrompt = msg.content;
+      } else {
+        anthropicMessages.push({
+          role: msg.role === "assistant" ? "assistant" : "user",
+          content: msg.content,
+        });
+      }
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: options.max_tokens || 4000,
+        temperature: options.temperature || 0.7,
+        system: systemPrompt || undefined,
+        messages: anthropicMessages,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        error.error?.message || `Anthropic API error: ${response.status}`,
+      );
+    }
+
+    const data = await response.json();
+
+    return {
+      content: data.content[0]?.text || "",
+      model: data.model,
+      provider: "anthropic",
+      usage: {
+        prompt_tokens: data.usage?.input_tokens,
+        completion_tokens: data.usage?.output_tokens,
+        total_tokens:
+          (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+      },
+    };
+  }
+
+  /**
    * Smart fallback: Try providers in order, skipping rate-limited ones
    * Prioritizes free-tier providers
    */
@@ -534,6 +801,7 @@ export class AIProviderManager {
       "openrouter", // Free models available
       "together", // $5 free credits
       "openai", // Paid only
+      "anthropic", // Paid only - Claude models
     ];
     const tried = new Set();
     const errors = [];

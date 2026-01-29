@@ -170,54 +170,67 @@ Make it professional, detailed, and ready for implementation.`;
 
   async improveSOP(existingText, improvementFocus) {
     const focusGuidance = {
-      general: "overall quality, structure, clarity, and professionalism",
+      general: "overall quality, clarity, detail, and professionalism",
       clarity: "clarity, readability, and ease of understanding",
-      structure: "document structure, organization, and formatting",
+      structure: "logical flow, organization, and sequencing",
       compliance: "regulatory compliance, safety standards, and best practices",
       detail: "level of detail, specificity, and completeness",
     };
 
-    const userPrompt = `Improve the following SOP document. Focus on: ${focusGuidance[improvementFocus] || focusGuidance.general}.
+    const userPrompt = `Improve the following content point by point. Focus on: ${focusGuidance[improvementFocus] || focusGuidance.general}.
 
-## 📄 Original SOP:
+## Original Content:
 ${existingText}
 
 ---
 
-## 📋 Your Task:
+## INSTRUCTIONS:
 
-**PART 1 - IMPROVED SOP:**
-Return the COMPLETE improved SOP document in proper Markdown format. This should be ready to use as-is. Include:
-- All original essential information (preserved and enhanced)
-- Proper document header (Title, ID, Version, Date, Owner)
-- Well-structured sections with clear headings
-- Professional formatting with tables, lists, and callouts
-- ISO 9001 compliant structure
+Improve the content directly WITHOUT adding any document structure, headers, metadata, dates, version numbers, or introductory text.
 
-**PART 2 - IMPROVEMENT FEEDBACK:**
-After the SOP, add a separator (---) and provide feedback in a table:
+**What to do:**
+- Take each point/section/step from the original and enhance it in place
+- Add more detail and specificity where needed
+- Improve sentence construction for better clarity
+- Use clearer, more professional language
+- Maintain the same overall structure and order as the original
+- Keep all the original information but express it better
+- Use active voice and imperative mood where appropriate
+
+**What NOT to do:**
+- Do NOT add document headers (Title, ID, Version, Date, Owner, etc.)
+- Do NOT add an introduction or preamble
+- Do NOT restructure into a formal SOP template
+- Do NOT add sections that weren't in the original
+- Do NOT embed enhancement suggestions within the improved content
+- Do NOT add meta-commentary inside the improved content
+- Do NOT wrap content in document formatting blocks
 
 ---
+
+## OUTPUT FORMAT (STRICTLY FOLLOW):
+
+**SECTION 1 - IMPROVED CONTENT:**
+Output ONLY the improved content here. This must be clean, complete, and ready for direct use. No commentary, no suggestions embedded within it.
+
+Then add this EXACT delimiter on its own line:
+
+<!-- FEEDBACK_SEPARATOR -->
+
+**SECTION 2 - ENHANCEMENT SUGGESTIONS (SEPARATE BLOCK):**
+This section is COMPLETELY SEPARATE from the improved content above. Include:
 
 ## 📊 Improvement Summary
 
-| Category | Original Status | Changes Made | Impact |
-|----------|-----------------|--------------|--------|
-| Structure | ... | ... | ... |
-| Clarity | ... | ... | ... |
-| Completeness | ... | ... | ... |
-| Compliance | ... | ... | ... |
-| Formatting | ... | ... | ... |
-
 ### 🎯 Key Improvements Made:
-- List the main changes
+- Bullet point each change you made (3-5 items)
 
-### 💡 Recommendations for Future Updates:
-- List any suggestions for further enhancement
+### 💡 Suggestions for Further Enhancement:
+- List any additional recommendations for future improvements
+- These suggestions should NOT be applied in Section 1
+- They are ideas for the user to consider separately
 
----
-
-**IMPORTANT:** The improved SOP above the separator should be a complete, standalone document ready for immediate use.`;
+CRITICAL: The delimiter <!-- FEEDBACK_SEPARATOR --> MUST appear between the two sections. The enhanced suggestions must NEVER appear within the improved content itself.`;
 
     return await this._generateCompletion(userPrompt, {
       temperature: 0.7,

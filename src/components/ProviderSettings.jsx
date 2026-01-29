@@ -1,13 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    AlertCircle,
-    CheckCircle,
-    ChevronDown,
-    Cpu,
-    RefreshCw,
-    Settings,
-    X,
-    Zap,
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
+  Cpu,
+  RefreshCw,
+  Settings,
+  X,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -17,26 +17,76 @@ const PROVIDER_INFO = {
     name: "Groq",
     description: "Fast inference, free tier available",
     speed: "Very Fast",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
+    models: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "qwen/qwen3-32b",
+      "moonshotai/kimi-k2-instruct",
+      "groq/compound",
+      "groq/compound-mini",
+    ],
     recommended: true,
   },
   openai: {
     name: "OpenAI",
-    description: "GPT-4 models, high quality",
+    description: "GPT-4 and GPT-5 models, high quality",
     speed: "Medium",
-    models: ["gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+    models: [
+      "gpt-5",
+      "gpt-5-mini",
+      "gpt-5-nano",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "gpt-4-turbo",
+      "gpt-4",
+      "gpt-3.5-turbo",
+    ],
+  },
+  anthropic: {
+    name: "Anthropic",
+    description: "Claude models - advanced reasoning",
+    speed: "Fast",
+    models: [
+      "claude-opus-4-5-20251101",
+      "claude-sonnet-4-5-20250929",
+      "claude-haiku-4-5-20251001",
+      "claude-opus-4-20250514",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "claude-3-5-haiku-20241022",
+      "claude-3-haiku-20240307",
+    ],
   },
   openrouter: {
     name: "OpenRouter",
     description: "Access to Claude, Gemini, and more",
     speed: "Varies",
-    models: ["anthropic/claude-3-5-sonnet", "google/gemini-1.5-pro"],
+    models: [
+      "google/gemini-2.0-flash-exp:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "anthropic/claude-3-5-sonnet",
+      "openai/gpt-4o",
+    ],
   },
   together: {
     name: "Together AI",
     description: "Llama models with fast inference",
     speed: "Fast",
-    models: ["meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo"],
+    models: [
+      "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo",
+      "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+      "Qwen/Qwen2.5-72B-Instruct-Turbo",
+    ],
+  },
+  cerebras: {
+    name: "Cerebras",
+    description: "Ultra-fast inference, free tier",
+    speed: "Ultra Fast",
+    models: ["llama3.1-70b", "llama3.1-8b"],
   },
 };
 
@@ -95,9 +145,11 @@ export default function ProviderSettings({ isOpen, onClose }) {
       // Set default status for UI
       setProviderStatus({
         groq: { configured: true, available: false },
-        openai: { configured: true, available: false },
+        openai: { configured: false, available: false },
+        anthropic: { configured: false, available: false },
         openrouter: { configured: false, available: false },
         together: { configured: false, available: false },
+        cerebras: { configured: false, available: false },
       });
     } finally {
       setLoading(false);

@@ -11,40 +11,63 @@ export default async function handler(req, res) {
   try {
     const aiManager = getAIManager();
     const providers = aiManager.getAvailableProviders();
+    const allProviderInfo = aiManager.getAllProvidersInfo();
     const results = {};
 
-    // Test each provider with a simple request
-    for (const [name, config] of Object.entries(providers)) {
-      const startTime = Date.now();
+    // By default, just return configuration status (fast)
+    // Use ?test=true to actually test provider connectivity
+    const shouldTest = req.query.test === "true";
 
-      try {
-        await aiManager.createCompletion(
-          name,
-          config.models[0],
-          [{ role: "user", content: 'Say "ok"' }],
-          { max_tokens: 5, temperature: 0 },
-        );
+    if (shouldTest) {
+      // Test each provider with a simple request (slower but more accurate)
+      for (const [name, config] of Object.entries(providers)) {
+        const startTime = Date.now();
 
+        try {
+          await aiManager.createCompletion(
+            name,
+            config.models[0],
+            [{ role: "user", content: 'Say "ok"' }],
+            { max_tokens: 5, temperature: 0 },
+          );
+
+          results[name] = {
+            available: true,
+            configured: true,
+            responseTime: Date.now() - startTime,
+            model: config.models[0],
+          };
+        } catch (error) {
+          results[name] = {
+            available: false,
+            configured: true,
+            responseTime: Date.now() - startTime,
+            error: error.message,
+            rateLimited:
+              error.message.includes("rate") || error.message.includes("429"),
+          };
+        }
+      }
+    } else {
+      // Fast mode: just check if providers are configured (no API calls)
+      for (const [name, config] of Object.entries(providers)) {
         results[name] = {
-          available: true,
+          available: true, // Assume available if configured
           configured: true,
-          responseTime: Date.now() - startTime,
           model: config.models[0],
-        };
-      } catch (error) {
-        results[name] = {
-          available: false,
-          configured: true,
-          responseTime: Date.now() - startTime,
-          error: error.message,
-          rateLimited:
-            error.message.includes("rate") || error.message.includes("429"),
         };
       }
     }
 
     // Add unconfigured providers
-    for (const name of ["openai", "groq", "openrouter", "together"]) {
+    for (const name of [
+      "openai",
+      "groq",
+      "openrouter",
+      "together",
+      "cerebras",
+      "anthropic",
+    ]) {
       if (!results[name]) {
         results[name] = { available: false, configured: false };
       }
